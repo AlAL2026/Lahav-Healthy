@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lean Mode">
+<meta name="theme-color" content="#020617">
+<title>Lean Mode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #4ade80; --orange: #fb923c; --blue: #38bdf8;
+    --purple: #818cf8; --red: #f87171;
+    --bg: #020617; --surface: #0f172a; --card: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08); --text: #f1f5f9;
+    --muted: #94a3b8; --dim: #64748b; --darker: #475569;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: 'Tajawal', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  input, button { font-family: 'Tajawal', sans-serif; }
+  .bebas { font-family: 'Bebas Neue', cursive; letter-spacing: 2px; }
+
+  /* ── Auth Screen ── */
+  #auth-screen {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 30px 24px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(74,222,128,0.08) 0%, transparent 70%),
+                linear-gradient(135deg, #020617, #0f172a);
+  }
+  .auth-logo { font-size: 52px; letter-spacing: 4px; color: var(--green); margin-bottom: 6px; }
+  .auth-sub { color: var(--dim); font-size: 14px; margin-bottom: 40px; }
+  .auth-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(74,222,128,0.2);
+    border-radius: 24px; padding: 32px 28px; width: 100%; max-width: 360px;
+  }
+  .auth-tabs { display: flex; gap: 0; margin-bottom: 28px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; }
+  .auth-tab {
+    flex: 1; padding: 10px; text-align: center; border-radius: 10px; cursor: pointer;
+    font-weight: 700; font-size: 14px; color: var(--dim); border: none; background: transparent; transition: all 0.2s;
+  }
+  .auth-tab.active { background: var(--green); color: #0f172a; }
+  .auth-label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 6px; }
+  .auth-input {
+    width: 100%; padding: 12px 16px; background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    color: var(--text); font-size: 16px; margin-bottom: 16px; outline: none; transition: border 0.2s;
+  }
+  .auth-input:focus { border-color: var(--green); }
+  .pin-dots { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
+  .pin-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--dim); transition: all 0.2s; }
+  .pin-dot.filled { background: var(--green); border-color: var(--green); transform: scale(1.1); }
+  .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .pin-key {
+    padding: 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 14px; font-size: 20px; font-weight: 700; color: var(--text);
+    cursor: pointer; text-align: center; transition: all 0.15s; border: none;
+    font-family: 'Tajawal', sans-serif;
+  }
+  .pin-key:active { background: rgba(74,222,128,0.2); transform: scale(0.95); }
+  .pin-key.del { color: var(--red); font-size: 16px; }
+  .btn-primary {
+    width: 100%; padding: 14px; background: var(--green); color: #0f172a;
+    border: none; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-error { color: var(--red); font-size: 13px; text-align: center; margin-top: 10px; min-height: 20px; }
+  .auth-users { margin-top: 16px; }
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 99px; font-size: 13px; cursor: pointer; margin: 4px; transition: all 0.2s;
+    color: var(--muted);
+  }
+  .user-chip:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── App Layout ── */
+  #app { display: none; min-height: 100vh; padding-bottom: 72px; }
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(9,18,35,0.95); backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(74,222,128,0.12);
+    padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .topbar-title { font-size: 24px; color: var(--green); line-height: 1; }
+  .topbar-user { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .topbar-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 10px; padding: 8px 12px;
+    cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.2s;
+  }
+  .icon-btn:hover { border-color: var(--green); color: var(--green); }
+  .content { padding: 18px 16px; max-width: 600px; margin: 0 auto; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 18px; margin-bottom: 14px; backdrop-filter: blur(8px);
+  }
+  .card-green { border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.04); }
+  .card-blue { border-color: rgba(56,189,248,0.25); background: rgba(56,189,248,0.04); }
+  .card-purple { border-color: rgba(129,140,248,0.25); background: rgba(129,140,248,0.04); }
+  .badge {
+    display: inline-block; border-radius: 99px; padding: 2px 10px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  }
+  .progress-wrap { background: #1e293b; border-radius: 99px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+
+  /* ── Grid stats ── */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .stats-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 10px; text-align: center; }
+  .stat-val { font-size: 26px; font-weight: 900; line-height: 1; }
+  .stat-lbl { color: var(--dim); font-size: 11px; margin-top: 5px; }
+
+  /* ── Meal / Exercise items ── */
+  .item-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; margin-bottom: 8px; border-radius: 12px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);
+    transition: all 0.2s;
+  }
+  .item-row.done-green { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.3); }
+  .item-row.done-purple { background: rgba(129,140,248,0.08); border-color: rgba(129,140,248,0.3); }
+  .check-circle {
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--darker);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; flex-shrink: 0; transition: all 0.2s;
+  }
+  .check-circle.green { background: var(--green); border-color: var(--green); color: #0f172a; }
+  .check-circle.purple { background: var(--purple); border-color: var(--purple); color: #fff; }
+
+  /* ── Inputs ── */
+  .field-label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 6px; }
+  .field-input {
+    width: 100%; padding: 10px 14px; background: #1e293b;
+    border: 1px solid #334155; border-radius: 10px; color: var(--text);
+    font-size: 14px; outline: none; font-family: 'Tajawal', sans-serif;
+  }
+  .field-input:focus { border-color: var(--green); }
+  .inline-inputs { display: flex; gap: 8px; align-items: flex-end; }
+  .btn-save {
+    padding: 10px 20px; background: var(--blue); border: none; border-radius: 10px;
+    color: #0f172a; font-weight: 800; cursor: pointer; font-size: 15px; white-space: nowrap;
+  }
+  .btn-add {
+    padding: 10px 16px; background: var(--orange); border: none; border-radius: 10px;
+    color: #0f172a; font-weight: 800; cursor: pointer; font-size: 18px;
+  }
+  .btn-danger {
+    background: none; border: none; color: var(--red); cursor: pointer; font-size: 18px; padding: 0 4px;
+  }
+
+  /* ── Bottom Nav ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+    background: rgba(9,18,35,0.97); backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; justify-content: space-around; padding: 8px 0 14px;
+  }
+  .nav-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; cursor: pointer; padding: 4px 10px; border-radius: 10px;
+  }
+  .nav-icon { font-size: 20px; }
+  .nav-lbl { font-size: 10px; font-weight: 700; color: var(--darker); transition: color 0.2s; font-family: 'Tajawal', sans-serif; }
+  .nav-btn.active .nav-lbl { color: var(--green); }
+  .nav-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--green); }
+
+  /* ── Tabs content ── */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Weight chart ── */
+  #weight-chart { width: 100%; overflow: visible; }
+
+  /* ── Quick actions ── */
+  .quick-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .quick-btn {
+    padding: 16px 8px; border-radius: 14px; cursor: pointer; text-align: center;
+    transition: all 0.2s; border: 1px solid; background: transparent;
+  }
+  .quick-icon { font-size: 22px; }
+  .quick-lbl { font-size: 12px; font-weight: 700; margin-top: 6px; }
+
+  /* ── Profile modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 200; align-items: center; justify-content: center; padding: 20px; overflow-y: auto;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid rgba(74,222,128,0.3);
+    border-radius: 22px; padding: 28px 24px; width: 100%; max-width: 420px;
+  }
+  .rec-box {
+    background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2);
+    border-radius: 12px; padding: 14px; margin-bottom: 14px;
+  }
+  .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .rec-cell { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px 10px; }
+
+  /* ── Weekly dots ── */
+  .week-dots { display: flex; gap: 8px; }
+  .week-dot { flex: 1; }
+  .week-dot-circle {
+    height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; transition: all 0.2s;
+  }
+  .week-dot-lbl { color: var(--darker); font-size: 10px; text-align: center; margin-top: 4px; }
+
+  /* ── History ── */
+  .hist-filters { display: flex; gap: 8px; margin-bottom: 14px; }
+  .hist-day-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  .hist-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .hist-mini { background: rgba(0,0,0,0.2); border-radius: 10px; padding: 10px 12px; }
+
+  /* ── Loading ── */
+  #loading-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; flex-direction: column; gap: 16px;
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid rgba(74,222,128,0.2);
+    border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Notification ── */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+    background: var(--surface); border: 1px solid rgba(74,222,128,0.3);
+    color: var(--green); padding: 12px 24px; border-radius: 99px; font-weight: 700; font-size: 14px;
+    z-index: 999; transition: transform 0.3s; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <p style="color:var(--dim);font-size:14px;">טוען...</p>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════ AUTH SCREEN ══════════════ -->
+<div id="auth-screen" style="display:none;">
+  <h1 class="auth-logo bebas">LEAN MODE</h1>
+  <p class="auth-sub">מעקב בריאות אישי</p>
+
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">כניסה</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">הרשמה</button>
+    </div>
+
+    <!-- Login -->
+    <div id="tab-login">
+      <div id="saved-users" style="margin-bottom:16px;display:none;">
+        <p style="color:var(--dim);font-size:12px;margin-bottom:8px;">בחר משתמש:</p>
+        <div id="users-list"></div>
+      </div>
+      <label class="auth-label">שם משתמש</label>
+      <input class="auth-input" id="login-username" type="text" placeholder="הכנס שם משתמש" autocomplete="off">
+      <label class="auth-label">קוד PIN (4 ספרות)</label>
+      <div class="pin-dots" id="login-dots">
+        <div class="pin-dot" id="login-d0"></div>
+        <div class="pin-d" id="login-d1"></div>
+        <div class="pin-dot" id="login-d2"></div>
+        <div class="pin-dot" id="login-d3"></div>
+      </div>
+      <div class="pin-keypad" id="login-keypad"></div>
+      <button class="btn-primary" onclick="doLogin()">כניסה</button>
+      <p class="auth-error" id="login-error"></p>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" style="display:none;">
+      <label class="auth-label">שם משתמש</label>
+      <input class="auth-input" id="reg-username" type="text" placeholder="הכנס שם (למשל: אביב)">
+      <label class="auth-label">קוד PIN (4 ספרות)</label>
+      <div class="pin-dots" id="reg-dots">
+        <div class="pin-dot" id="reg-d0"></div>
+        <div class="pin-dot" id="reg-d1"></div>
+        <div class="pin-dot" id="reg-d2"></div>
+        <div class="pin-dot" id="reg-d3"></div>
+      </div>
+      <div class="pin-keypad" id="reg-keypad"></div>
+      <button class="btn-primary" onclick="doRegister()">הרשמה</button>
+      <p class="auth-error" id="reg-error"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MAIN APP ══════════════ -->
+<div id="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div>
+      <div class="bebas topbar-title">LEAN MODE</div>
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" onclick="openProfile()">⚙️ פרופיל</button>
+      <button class="icon-btn" onclick="doLogout()">יציאה</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- DASHBOARD -->
+    <div class="tab-content active" id="tab-dashboard">
+      <div id="no-profile-banner" style="display:none;" class="card card-green" style="margin-bottom:14px;">
+        <p style="color:var(--green);font-weight:700;">👋 ברוך הבא! הגדר פרופיל כדי להתחיל</p>
+        <button class="btn-primary" style="margin-top:12px;width:auto;padding:10px 24px;" onclick="openProfile()">הגדר פרופיל</button>
+      </div>
+      <div class="stats-grid" id="dash-stats"></div>
+      <div class="card" id="dash-kcal-card" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px;">
+          <div><span style="font-weight:800;font-size:16px;">קלוריות היום</span></div>
+          <span id="dash-kcal-text" style="font-weight:700;font-size:15px;"></span>
+        </div>
+        <div class="progress-wrap" style="height:10px;"><div class="progress-bar" id="dash-kcal-bar"></div></div>
+        <p id="dash-deficit" style="font-size:13px;margin-top:8px;font-weight:700;"></p>
+      </div>
+      <div class="card" id="dash-workout-card" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-weight:800;font-size:16px;">אימון היום</span>
+          <span id="dash-workout-badge" class="badge"></span>
+        </div>
+        <div class="progress-wrap" style="height:8px;"><div class="progress-bar" id="dash-workout-bar" style="background:var(--purple);"></div></div>
+        <p id="dash-workout-text" style="color:var(--muted);font-size:13px;margin-top:8px;"></p>
+      </div>
+      <div class="quick-grid">
+        <button class="quick-btn" style="border-color:rgba(74,222,128,0.3);color:var(--green);" onclick="switchTab('nutrition')">
+          <div class="quick-icon">🥗</div><div class="quick-lbl">רשום ארוחה</div>
+        </button>
+        <button class="quick-btn" style="border-color:rgba(129,140,248,0.3);color:var(--purple);" onclick="switchTab('fitness')">
+          <div class="quick-icon">💪</div><div class="quick-lbl">עדכן אימון</div>
+        </button>
+        <button class="quick-btn" style="border-color:rgba(56,189,248,0.3);color:var(--blue);" onclick="switchTab('weight')">
+          <div class="quick-icon">⚖️</div><div class="quick-lbl">שקול</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- NUTRITION -->
+    <div class="tab-content" id="tab-nutrition">
+      <div class="card card-green">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px;">
+          <div>
+            <h3 style="font-weight:800;font-size:17px;">סיכום יומי</h3>
+            <p id="nut-target-lbl" style="color:var(--dim);font-size:13px;"></p>
+          </div>
+          <span id="nut-total" class="bebas" style="font-size:32px;color:var(--green);"></span>
+        </div>
+        <div class="progress-wrap" style="height:10px;"><div class="progress-bar" id="nut-bar" style="background:var(--green);"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
+          <span style="color:var(--dim);">נאכל: <span id="nut-eaten-lbl"></span></span>
+          <span id="nut-deficit-lbl" style="font-weight:700;"></span>
+        </div>
+      </div>
+      <div id="meals-container"></div>
+      <div class="card">
+        <h4 style="color:var(--orange);font-size:13px;margin-bottom:12px;">➕ הוסף פריט חופשי</h4>
+        <div class="inline-inputs">
+          <div style="flex:2;">
+            <input class="field-input" id="custom-name" placeholder="שם המאכל">
+          </div>
+          <div style="flex:1;">
+            <input class="field-input" id="custom-kcal" type="number" placeholder="קק״ל">
+          </div>
+          <button class="btn-add" onclick="addCustomItem()">+</button>
+        </div>
+        <div id="custom-items-list" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- FITNESS -->
+    <div class="tab-content" id="tab-fitness">
+      <div class="card card-purple">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div>
+            <h3 id="fit-type" class="bebas" style="font-size:22px;color:var(--purple);"></h3>
+            <p id="fit-subtitle" style="color:var(--dim);font-size:13px;"></p>
+          </div>
+          <div style="text-align:center;">
+            <div id="fit-pct" class="bebas" style="font-size:34px;"></div>
+            <div style="color:var(--dim);font-size:11px;">הושלם</div>
+          </div>
+        </div>
+        <div class="progress-wrap" style="height:8px;"><div class="progress-bar" id="fit-bar" style="background:var(--purple);"></div></div>
+      </div>
+      <div id="exercises-container"></div>
+      <div class="card" style="margin-top:6px;">
+        <h4 style="color:var(--muted);font-size:13px;margin-bottom:12px;">אימונים השבוע</h4>
+        <div class="week-dots" id="week-dots"></div>
+      </div>
+    </div>
+
+    <!-- WEIGHT -->
+    <div class="tab-content" id="tab-weight">
+      <div class="stats-grid stats-grid-3" id="weight-stats" style="margin-bottom:14px;"></div>
+      <div id="weight-goal-banner" style="display:none;" class="card card-green">
+        <p id="weight-goal-text" style="color:var(--green);font-weight:700;font-size:15px;"></p>
+      </div>
+      <div class="card">
+        <h4 style="font-weight:800;margin-bottom:6px;">שקילה חדשה</h4>
+        <p style="color:var(--dim);font-size:12px;margin-bottom:12px;">💡 שמירת משקל מעדכנת אוטומטית את יעד הקלוריות</p>
+        <div class="inline-inputs">
+          <div style="flex:1.2;">
+            <input class="field-input" type="date" id="weight-date">
+          </div>
+          <div style="width:80px;">
+            <input class="field-input" type="number" id="weight-val" placeholder='ק"ג' step="0.1">
+          </div>
+          <button class="btn-save" onclick="addWeight()">שמור</button>
+        </div>
+        <div id="weight-update-note" style="display:none;margin-top:12px;" class="card card-blue" style="margin-bottom:0;">
+          <p style="color:var(--blue);font-weight:800;font-size:13px;margin-bottom:6px;">✅ יעד קלוריות עודכן!</p>
+          <p id="weight-note-text" style="color:var(--muted);font-size:12px;"></p>
+        </div>
+      </div>
+      <div class="card" id="chart-card" style="display:none;">
+        <h4 style="font-weight:800;margin-bottom:12px;">גרף משקל</h4>
+        <svg id="weight-chart" viewBox="0 0 340 130"></svg>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;">
+          <span id="chart-from" style="color:var(--dim);font-size:11px;"></span>
+          <span id="chart-to" style="color:var(--dim);font-size:11px;"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h4 style="font-weight:800;margin-bottom:12px;">רשומות שקילה</h4>
+        <div id="weight-log-list"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="tab-content" id="tab-history">
+      <div class="card">
+        <h4 style="font-weight:800;margin-bottom:12px;">סנן לפי תאריך</h4>
+        <div class="hist-filters">
+          <div style="flex:1;">
+            <label class="field-label" style="font-size:11px;">מתאריך</label>
+            <input class="field-input" type="date" id="hist-from" oninput="renderHistory()">
+          </div>
+          <div style="flex:1;">
+            <label class="field-label" style="font-size:11px;">עד תאריך</label>
+            <input class="field-input" type="date" id="hist-to" oninput="renderHistory()">
+          </div>
+        </div>
+        <button onclick="document.getElementById('hist-from').value='';document.getElementById('hist-to').value='';renderHistory();"
+          style="padding:6px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:var(--red);border-radius:8px;cursor:pointer;font-size:13px;">
+          נקה סינון
+        </button>
+      </div>
+      <p id="hist-count" style="color:var(--dim);font-size:13px;margin-bottom:12px;"></p>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')">
+      <span class="nav-icon">⚡</span><span class="nav-lbl">בית</span>
+    </button>
+    <button class="nav-btn" id="nav-nutrition" onclick="switchTab('nutrition')">
+      <span class="nav-icon">🥗</span><span class="nav-lbl">תזונה</span>
+    </button>
+    <button class="nav-btn" id="nav-fitness" onclick="switchTab('fitness')">
+      <span class="nav-icon">💪</span><span class="nav-lbl">כושר</span>
+    </button>
+    <button class="nav-btn" id="nav-weight" onclick="switchTab('weight')">
+      <span class="nav-icon">⚖️</span><span class="nav-lbl">משקל</span>
+    </button>
+    <button class="nav-btn" id="nav-history" onclick="switchTab('history')">
+      <span class="nav-icon">📅</span><span class="nav-lbl">היסטוריה</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profile-modal">
+  <div class="modal-box">
+    <h2 class="bebas" style="color:var(--green);font-size:28px;margin-bottom:20px;">הגדרת פרופיל</h2>
+    <div style="margin-bottom:14px;">
+      <label class="field-label">תאריך לידה</label>
+      <input class="field-input" type="date" id="p-birthdate" oninput="updateRecBox()">
+      <p id="p-age-display" style="color:var(--green);font-size:12px;margin-top:5px;"></p>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="field-label">גובה (ס"מ)</label>
+      <input class="field-input" type="number" id="p-height" placeholder="למשל 175" oninput="updateRecBox()">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="field-label">משקל נוכחי (ק"ג)</label>
+      <input class="field-input" type="number" id="p-weight" placeholder="למשל 85" oninput="updateRecBox()">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="field-label">משקל יעד (ק"ג)</label>
+      <input class="field-input" type="number" id="p-goal" placeholder="למשל 75" oninput="updateRecBox()">
+    </div>
+    <div class="rec-box" id="rec-box" style="display:none;">
+      <p style="color:var(--green);font-weight:800;font-size:13px;margin-bottom:8px;">💡 המלצה מחושבת</p>
+      <div class="rec-grid">
+        <div class="rec-cell">
+          <div style="color:var(--dim);font-size:11px;">TDEE יומי</div>
+          <div id="rec-tdee" style="font-weight:800;font-size:16px;"></div>
+        </div>
+        <div class="rec-cell">
+          <div style="color:var(--dim);font-size:11px;">גרעון מומלץ</div>
+          <div id="rec-deficit" style="color:var(--orange);font-weight:800;font-size:16px;"></div>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:4px;">קצב ירידה: <strong id="rec-pace" style="color:var(--green);"></strong></p>
+      <p id="rec-note" style="color:var(--dim);font-size:11px;"></p>
+    </div>
+    <div style="margin-bottom:18px;">
+      <label class="field-label">יעד קלוריות יומי</label>
+      <input class="field-input" type="number" id="p-kcal" style="border-color:var(--blue);color:var(--blue);font-weight:800;font-size:16px;">
+      <p id="p-kcal-note" style="color:var(--dim);font-size:11px;margin-top:5px;"></p>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <button class="btn-primary" onclick="saveProfile()">שמור</button>
+      <button onclick="document.getElementById('profile-modal').classList.remove('open')"
+        style="flex:1;padding:12px;background:#1e293b;color:var(--muted);border:1px solid #334155;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+// ── Firebase config ──────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyAGuygwtYgDSs7-5dllp7uMTZV6OdGBSIY",
+  authDomain: "lahav---healthy.firebaseapp.com",
+  projectId: "lahav---healthy",
+  storageBucket: "lahav---healthy.firebasestorage.app",
+  messagingSenderId: "960244336855",
+  appId: "1:960244336855:web:c538002a994a895487c892",
+  measurementId: "G-HBS7RMFR2E"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ── Constants ────────────────────────────────────────────────────
+const DEFAULT_MEALS = [
+  { id:"b1", meal:"בוקר", name:"שיבולת שועל עם פירות", kcal:320 },
+  { id:"b2", meal:"בוקר", name:"ביצה קשה", kcal:78 },
+  { id:"l1", meal:"צהריים", name:"חזה עוף צלוי + ירקות", kcal:420 },
+  { id:"l2", meal:"צהריים", name:'אורז מלא (100 גר\')', kcal:130 },
+  { id:"s1", meal:"חטיף", name:"יוגורט 0% + אגוזים", kcal:180 },
+  { id:"d1", meal:"ערב", name:"סלמון אפוי + ברוקולי", kcal:380 },
+  { id:"d2", meal:"ערב", name:"סלט ירקות + שמן זית", kcal:120 },
+];
+
+const WEEKLY_PLAN = {
+  0:{ label:"ראשון", type:"פלג עליון", exercises:[
+    {id:"e1",name:"שכיבות שמיכה",sets:"4×12",muscle:"חזה/כתפיים"},
+    {id:"e2",name:"שכיבות שמיכה צרות",sets:"3×12",muscle:"טריצפס"},
+    {id:"e3",name:"עליות מתח / שכיבה הפוכה",sets:"3×8",muscle:"גב/ביצפס"},
+    {id:"e4",name:"כפיפות בטן",sets:"3×20",muscle:"בטן"},
+  ]},
+  1:{ label:"שני", type:"מנוחה פעילה", exercises:[
+    {id:"e5",name:"הליכה 30 דקות",sets:"1×30 דק'",muscle:"קרדיו קל"},
+    {id:"e6",name:"מתיחות כלליות",sets:"1×15 דק'",muscle:"גמישות"},
+  ]},
+  2:{ label:"שלישי", type:"פלג תחתון", exercises:[
+    {id:"e7",name:"סקוואט",sets:"4×15",muscle:"רגליים/ישבן"},
+    {id:"e8",name:"לאנג'ס",sets:"3×12 לצד",muscle:"ירכיים"},
+    {id:"e9",name:"גשר ישבן",sets:"4×15",muscle:"ישבן/גב תחתון"},
+    {id:"e10",name:"עמידת קפיצה (Jump Squat)",sets:"3×10",muscle:"קרדיו + רגליים"},
+  ]},
+  3:{ label:"רביעי", type:"קרדיו", exercises:[
+    {id:"e11",name:"ברפי",sets:"4×10",muscle:"Full Body"},
+    {id:"e12",name:"ריצה במקום עם ברכיים גבוהות",sets:"4×45 שנ'",muscle:"קרדיו"},
+    {id:"e13",name:"קפיצות פתוח-סגור",sets:"3×30",muscle:"קרדיו"},
+    {id:"e14",name:"Mountain Climbers",sets:"3×30 שנ'",muscle:"ליבה+קרדיו"},
+  ]},
+  4:{ label:"חמישי", type:"ליבה וגב", exercises:[
+    {id:"e15",name:"פלאנק",sets:"4×45 שנ'",muscle:"ליבה"},
+    {id:"e16",name:"סופרמן",sets:"3×15",muscle:"גב תחתון"},
+    {id:"e17",name:"קראנצ'ים",sets:"4×20",muscle:"בטן עליונה"},
+    {id:"e18",name:"Russian Twist",sets:"3×20",muscle:"אלכסוני בטן"},
+    {id:"e19",name:"Dead Bug",sets:"3×10 לצד",muscle:"ליבה עמוק"},
+  ]},
+  5:{ label:"שישי", type:"Full Body", exercises:[
+    {id:"e20",name:"שכיבות שמיכה רחבות",sets:"3×12",muscle:"חזה"},
+    {id:"e21",name:"סקוואט + לחיצה",sets:"3×12",muscle:"Full Body"},
+    {id:"e22",name:"ברפי מלא",sets:"3×8",muscle:"קרדיו"},
+    {id:"e23",name:"Hollow Hold",sets:"3×30 שנ'",muscle:"ליבה"},
+  ]},
+  6:{ label:"שבת", type:"מנוחה", exercises:[
+    {id:"e24",name:"מתיחות ויוגה",sets:"1×20 דק'",muscle:"שחרור"},
+  ]},
+};
+
+// ── State ────────────────────────────────────────────────────────
+let currentUser = null; // { username, uid }
+let userData = {}; // full user doc from firestore
+// userData = { profile:{}, nutritionLog:{}, fitnessLog:{}, weightLog:[] }
+
+const todayStr = () => new Date().toISOString().slice(0,10);
+const fmtDate = (d) => new Date(d).toLocaleDateString("he-IL");
+const calcAge = (bd) => {
+  if (!bd) return 0;
+  const t = new Date(), b = new Date(bd);
+  let a = t.getFullYear() - b.getFullYear();
+  if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a--;
+  return a;
+};
+const calcTDEE = (p, wOverride) => {
+  const age = calcAge(p.birthdate);
+  const w = wOverride || p.startWeight;
+  if (!age || !p.height || !w) return 0;
+  return Math.round((10 * +w + 6.25 * +p.height - 5 * age + 5) * 1.375);
+};
+const calcRec = (p, wOverride) => {
+  const tdee = calcTDEE(p, wOverride);
+  if (!tdee) return null;
+  const tolose = (+( wOverride || p.startWeight)) - (+p.goalWeight);
+  let deficit = 500, pace = 'כ-0.5 ק"ג/שבוע', note = "קצב בריא ומומלץ";
+  if (tolose > 20) { deficit = 700; pace = 'כ-0.7 ק"ג/שבוע'; note = "גרעון גדול כי המרחק ליעד גדול"; }
+  if (tolose < 5)  { deficit = 300; pace = 'כ-0.3 ק"ג/שבוע'; note = "גרעון עדין כי קרוב ליעד"; }
+  return { tdee, target: Math.max(1200, tdee - deficit), deficit, pace, note };
+};
+
+// ── Firestore helpers ────────────────────────────────────────────
+const userRef = (uid) => doc(db, "users", uid);
+
+async function saveUserData() {
+  if (!currentUser) return;
+  try { await setDoc(userRef(currentUser.uid), userData, { merge: true }); }
+  catch(e) { console.error("Save error:", e); }
+}
+
+// ── PIN Keypad builder ───────────────────────────────────────────
+let pins = { login: "", reg: "" };
+
+function buildKeypad(prefix) {
+  const kp = document.getElementById(prefix + "-keypad");
+  if (!kp) return;
+  kp.innerHTML = "";
+  [1,2,3,4,5,6,7,8,9,"",0,"⌫"].forEach(k => {
+    const btn = document.createElement("button");
+    btn.className = "pin-key" + (k === "⌫" ? " del" : "");
+    btn.textContent = k === "" ? "" : k;
+    if (k === "") { btn.style.cursor = "default"; btn.disabled = true; }
+    else btn.onclick = () => pinPress(prefix, String(k));
+    kp.appendChild(btn);
+  });
+}
+
+function pinPress(prefix, key) {
+  if (key === "⌫") { pins[prefix] = pins[prefix].slice(0,-1); }
+  else if (pins[prefix].length < 4) { pins[prefix] += key; }
+  updateDots(prefix);
+}
+
+function updateDots(prefix) {
+  for (let i = 0; i < 4; i++) {
+    const d = document.getElementById(prefix + "-d" + i);
+    if (d) d.className = "pin-dot" + (i < pins[prefix].length ? " filled" : "");
+  }
+}
+
+// ── Auth logic ───────────────────────────────────────────────────
+window.switchAuthTab = (tab) => {
+  document.getElementById("tab-login").style.display = tab === "login" ? "" : "none";
+  document.getElementById("tab-register").style.display = tab === "register" ? "" : "none";
+  document.querySelectorAll(".auth-tab").forEach((t,i) => t.classList.toggle("active", (i===0) === (tab==="login")));
+  pins.login = ""; pins.reg = "";
+  updateDots("login"); updateDots("reg");
+};
+
+window.doRegister = async () => {
+  const username = document.getElementById("reg-username").value.trim();
+  const pin = pins.reg;
+  const err = document.getElementById("reg-error");
+  if (!username) { err.textContent = "הכנס שם משתמש"; return; }
+  if (pin.length !== 4) { err.textContent = "הכנס PIN של 4 ספרות"; return; }
+  err.textContent = "בודק...";
+  const uid = username.toLowerCase().replace(/\s+/g,"_");
+  try {
+    const snap = await getDoc(userRef(uid));
+    if (snap.exists()) { err.textContent = "שם משתמש תפוס, בחר אחר"; return; }
+    const newUser = { username, pin, profile:{}, nutritionLog:{}, fitnessLog:{}, weightLog:[] };
+    await setDoc(userRef(uid), newUser);
+    saveLocalUser(uid, username);
+    loginUser({ uid, username }, newUser);
+  } catch(e) { err.textContent = "שגיאה: " + e.message; }
+};
+
+window.doLogin = async () => {
+  const username = document.getElementById("login-username").value.trim();
+  const pin = pins.login;
+  const err = document.getElementById("login-error");
+  if (!username) { err.textContent = "הכנס שם משתמש"; return; }
+  if (pin.length !== 4) { err.textContent = "הכנס PIN של 4 ספרות"; return; }
+  err.textContent = "מתחבר...";
+  const uid = username.toLowerCase().replace(/\s+/g,"_");
+  try {
+    const snap = await getDoc(userRef(uid));
+    if (!snap.exists()) { err.textContent = "משתמש לא נמצא"; return; }
+    const data = snap.data();
+    if (data.pin !== pin) { err.textContent = "PIN שגוי"; pins.login=""; updateDots("login"); return; }
+    saveLocalUser(uid, data.username || username);
+    loginUser({ uid, username: data.username || username }, data);
+  } catch(e) { err.textContent = "שגיאה: " + e.message; }
+};
+
+function loginUser(user, data) {
+  currentUser = user;
+  userData = {
+    profile: data.profile || {},
+    nutritionLog: data.nutritionLog || {},
+    fitnessLog: data.fitnessLog || {},
+    weightLog: data.weightLog || [],
+    pin: data.pin,
+    username: data.username,
+  };
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("topbar-user").textContent = "שלום, " + user.username;
+  initApp();
+}
+
+window.doLogout = () => {
+  currentUser = null; userData = {};
+  document.getElementById("app").style.display = "none";
+  document.getElementById("auth-screen").style.display = "flex";
+  pins.login = ""; updateDots("login");
+  document.getElementById("login-error").textContent = "";
+  switchTab("dashboard");
+};
+
+// ── Local saved users ────────────────────────────────────────────
+function saveLocalUser(uid, username) {
+  const users = JSON.parse(localStorage.getItem("lm_users") || "[]");
+  if (!users.find(u => u.uid === uid)) { users.push({ uid, username }); localStorage.setItem("lm_users", JSON.stringify(users)); }
+  localStorage.setItem("lm_last", uid);
+}
+
+function loadSavedUsers() {
+  const users = JSON.parse(localStorage.getItem("lm_users") || "[]");
+  const lastUid = localStorage.getItem("lm_last");
+  if (users.length === 0) return;
+  const cont = document.getElementById("saved-users");
+  const list = document.getElementById("users-list");
+  cont.style.display = "";
+  list.innerHTML = users.map(u =>
+    `<span class="user-chip" onclick="quickLogin('${u.uid}','${u.username}')">👤 ${u.username}</span>`
+  ).join("");
+  if (lastUid) {
+    const last = users.find(u => u.uid === lastUid);
+    if (last) document.getElementById("login-username").value = last.username;
+  }
+}
+
+window.quickLogin = (uid, username) => {
+  document.getElementById("login-username").value = username;
+  document.getElementById("login-error").textContent = "הכנס PIN";
+};
+
+// ── Tab switching ────────────────────────────────────────────────
+let activeTab = "dashboard";
+window.switchTab = (tab) => {
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.getElementById("tab-" + tab).classList.add("active");
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("nav-" + tab).classList.add("active");
+  activeTab = tab;
+  if (tab === "nutrition") renderNutrition();
+  if (tab === "fitness") renderFitness();
+  if (tab === "weight") renderWeight();
+  if (tab === "history") renderHistory();
+  if (tab === "dashboard") renderDashboard();
+};
+
+// ── Toast ────────────────────────────────────────────────────────
+window.showToast = (msg) => {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+};
+
+// ── PROFILE ──────────────────────────────────────────────────────
+window.openProfile = () => {
+  const p = userData.profile || {};
+  document.getElementById("p-birthdate").value = p.birthdate || "";
+  document.getElementById("p-height").value = p.height || "";
+  document.getElementById("p-weight").value = p.startWeight || "";
+  document.getElementById("p-goal").value = p.goalWeight || "";
+  document.getElementById("p-kcal").value = p.targetKcal || "";
+  updateRecBox();
+  document.getElementById("profile-modal").classList.add("open");
+};
+
+window.updateRecBox = () => {
+  const bd = document.getElementById("p-birthdate").value;
+  const h = document.getElementById("p-height").value;
+  const w = document.getElementById("p-weight").value;
+  const g = document.getElementById("p-goal").value;
+  const age = calcAge(bd);
+  if (age > 0) document.getElementById("p-age-display").textContent = "גיל: " + age;
+  else document.getElementById("p-age-display").textContent = "";
+  const rec = calcRec({ birthdate:bd, height:h, startWeight:w, goalWeight:g });
+  const box = document.getElementById("rec-box");
+  if (rec) {
+    box.style.display = "";
+    document.getElementById("rec-tdee").textContent = rec.tdee + ' קק"ל';
+    document.getElementById("rec-deficit").textContent = rec.deficit + ' קק"ל';
+    document.getElementById("rec-pace").textContent = rec.pace;
+    document.getElementById("rec-note").textContent = rec.note;
+    if (!document.getElementById("p-kcal").value) document.getElementById("p-kcal").value = rec.target;
+    document.getElementById("p-kcal-note").textContent = 'המלצה: ' + rec.target + ' קק"ל';
+  } else { box.style.display = "none"; }
+};
+
+window.saveProfile = async () => {
+  const p = {
+    birthdate: document.getElementById("p-birthdate").value,
+    height: document.getElementById("p-height").value,
+    startWeight: document.getElementById("p-weight").value,
+    goalWeight: document.getElementById("p-goal").value,
+    targetKcal: +document.getElementById("p-kcal").value || 1600,
+  };
+  const rec = calcRec(p);
+  if (rec) { p.tdee = rec.tdee; if (!document.getElementById("p-kcal").value) p.targetKcal = rec.target; }
+  userData.profile = p;
+  await saveUserData();
+  document.getElementById("profile-modal").classList.remove("open");
+  showToast("✅ פרופיל נשמר!");
+  renderDashboard();
+};
+
+// ── NUTRITION ────────────────────────────────────────────────────
+function getNutDay() { return userData.nutritionLog[todayStr()] || { eaten:[], custom:[] }; }
+
+function getTotalKcal(day) {
+  const eaten = new Set(day.eaten || []);
+  return DEFAULT_MEALS.filter(m => eaten.has(m.id)).reduce((s,m) => s + m.kcal, 0)
+    + (day.custom || []).reduce((s,c) => s + +c.kcal, 0);
+}
+
+async function toggleMeal(id) {
+  const day = getNutDay();
+  const eaten = new Set(day.eaten || []);
+  if (eaten.has(id)) eaten.delete(id); else eaten.add(id);
+  userData.nutritionLog[todayStr()] = { ...day, eaten: [...eaten] };
+  await saveUserData();
+  renderNutrition(); renderDashboard();
+}
+
+window.addCustomItem = async () => {
+  const name = document.getElementById("custom-name").value.trim();
+  const kcal = document.getElementById("custom-kcal").value;
+  if (!name || !kcal) return;
+  const day = getNutDay();
+  day.custom = [...(day.custom||[]), { id: Date.now(), name, kcal: +kcal }];
+  userData.nutritionLog[todayStr()] = day;
+  document.getElementById("custom-name").value = "";
+  document.getElementById("custom-kcal").value = "";
+  await saveUserData();
+  renderNutrition(); renderDashboard();
+};
+
+window.removeCustomItem = async (id) => {
+  const day = getNutDay();
+  day.custom = (day.custom||[]).filter(c => c.id !== id);
+  userData.nutritionLog[todayStr()] = day;
+  await saveUserData();
+  renderNutrition(); renderDashboard();
+};
+
+function renderNutrition() {
+  const p = userData.profile || {};
+  const target = p.targetKcal || 1600;
+  const day = getNutDay();
+  const eaten = new Set(day.eaten || []);
+  const total = getTotalKcal(day);
+  const deficit = target - total;
+  document.getElementById("nut-target-lbl").textContent = 'יעד: ' + target + ' קק"ל';
+  document.getElementById("nut-total").textContent = total;
+  document.getElementById("nut-total").style.color = total > target ? "var(--red)" : "var(--green)";
+  const pct = Math.min(100, Math.round(total/target*100));
+  const bar = document.getElementById("nut-bar");
+  bar.style.width = pct + "%"; bar.style.height = "10px";
+  bar.style.background = total > target ? "var(--red)" : "var(--green)";
+  bar.style.boxShadow = total > target ? "0 0 8px #f8717180" : "0 0 8px #4ade8080";
+  document.getElementById("nut-eaten-lbl").textContent = total + ' קק"ל';
+  const dl = document.getElementById("nut-deficit-lbl");
+  dl.textContent = deficit >= 0 ? ('גרעון: ' + deficit + ' קק"ל') : ('חריגה: ' + Math.abs(deficit) + ' קק"ל');
+  dl.style.color = deficit >= 0 ? "var(--green)" : "var(--red)";
+
+  const mc = document.getElementById("meals-container");
+  mc.innerHTML = "";
+  ["בוקר","צהריים","חטיף","ערב"].forEach(meal => {
+    const items = DEFAULT_MEALS.filter(m => m.meal === meal);
+    let html = `<div class="card"><h4 style="color:var(--muted);font-size:12px;margin-bottom:10px;letter-spacing:1px;">${meal}</h4>`;
+    items.forEach(m => {
+      const done = eaten.has(m.id);
+      html += `<div class="item-row ${done?'done-green':''}" onclick="toggleMealRow('${m.id}')">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="check-circle ${done?'green':''}">${done?"✓":""}</div>
+          <span style="font-size:14px;color:${done?'var(--text)':'var(--muted)'};">${m.name}</span>
+        </div>
+        <span class="badge" style="background:${done?'rgba(74,222,128,0.15)':'rgba(100,116,139,0.15)'};color:${done?'var(--green)':'var(--dim)'};">${m.kcal}</span>
+      </div>`;
+    });
+    html += "</div>";
+    mc.innerHTML += html;
+  });
+
+  const cl = document.getElementById("custom-items-list");
+  cl.innerHTML = (day.custom||[]).map(c =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(251,146,60,0.07);border:1px solid rgba(251,146,60,0.2);border-radius:10px;margin-bottom:6px;">
+      <span style="font-size:14px;">${c.name}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="badge" style="background:rgba(251,146,60,0.15);color:var(--orange);">${c.kcal}</span>
+        <button class="btn-danger" onclick="removeCustomItem(${c.id})">×</button>
+      </div>
+    </div>`
+  ).join("");
+}
+
+window.toggleMealRow = (id) => toggleMeal(id);
+
+// ── FITNESS ──────────────────────────────────────────────────────
+function getFitDay() { return userData.fitnessLog[todayStr()] || { done:[] }; }
+
+async function toggleExercise(id) {
+  const day = getFitDay();
+  const done = new Set(day.done || []);
+  if (done.has(id)) done.delete(id); else done.add(id);
+  userData.fitnessLog[todayStr()] = { ...day, done: [...done] };
+  await saveUserData();
+  renderFitness(); renderDashboard();
+}
+
+function renderFitness() {
+  const dow = new Date().getDay();
+  const plan = WEEKLY_PLAN[dow];
+  const day = getFitDay();
+  const done = new Set(day.done || []);
+  const pct = plan.exercises.length ? Math.round(done.size / plan.exercises.length * 100) : 0;
+
+  document.getElementById("fit-type").textContent = plan.type;
+  document.getElementById("fit-subtitle").textContent = plan.label + " · " + plan.exercises.length + " תרגילים";
+  document.getElementById("fit-pct").textContent = pct + "%";
+  document.getElementById("fit-pct").style.color = pct === 100 ? "var(--green)" : "var(--purple)";
+  const bar = document.getElementById("fit-bar");
+  bar.style.width = pct + "%"; bar.style.height = "8px";
+
+  const ec = document.getElementById("exercises-container");
+  ec.innerHTML = plan.exercises.map(ex => {
+    const d = done.has(ex.id);
+    return `<div class="item-row ${d?'done-purple':''}" onclick="toggleExRow('${ex.id}')">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="check-circle ${d?'purple':''}">${d?"✓":""}</div>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:${d?'var(--text)':'var(--muted)'};">${ex.name}</div>
+          <div style="color:var(--darker);font-size:12px;margin-top:2px;">${ex.muscle}</div>
+        </div>
+      </div>
+      <span class="badge" style="background:${d?'rgba(129,140,248,0.15)':'rgba(71,85,105,0.15)'};color:${d?'var(--purple)':'var(--darker)'};">${ex.sets}</span>
+    </div>`;
+  }).join("");
+
+  // Week dots
+  const wd = document.getElementById("week-dots");
+  wd.innerHTML = "";
+  const today = todayStr();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.toISOString().slice(0,10);
+    const hasFit = (userData.fitnessLog[ds]?.done?.length || 0) > 0;
+    const isToday = ds === today;
+    const lbl = d.toLocaleDateString("he-IL", { weekday:"narrow" });
+    wd.innerHTML += `<div class="week-dot">
+      <div class="week-dot-circle" style="background:${hasFit?'var(--green)':isToday?'rgba(74,222,128,0.15)':'rgba(255,255,255,0.04)'};border:1px solid ${isToday?'var(--green)':'transparent'};">
+        ${hasFit?"✓":""}
+      </div>
+      <div class="week-dot-lbl">${lbl}</div>
+    </div>`;
+  }
+}
+
+window.toggleExRow = (id) => toggleExercise(id);
+
+// ── WEIGHT ───────────────────────────────────────────────────────
+window.addWeight = async () => {
+  const date = document.getElementById("weight-date").value;
+  const val = +document.getElementById("weight-val").value;
+  if (!date || !val) return;
+  const log = userData.weightLog || [];
+  const filtered = log.filter(w => w.date !== date);
+  userData.weightLog = [...filtered, { date, weight: val }].sort((a,b) => a.date.localeCompare(b.date));
+
+  // Auto-recalc calories
+  const p = userData.profile || {};
+  let note = "";
+  if (p.birthdate && p.height && p.goalWeight) {
+    const rec = calcRec(p, val);
+    if (rec) {
+      userData.profile.tdee = rec.tdee;
+      userData.profile.targetKcal = rec.target;
+      userData.profile.startWeight = val;
+      note = `TDEE: ${rec.tdee} קק"ל | יעד חדש: ${rec.target} קק"ל | קצב: ${rec.pace}`;
+      document.getElementById("weight-note-text").textContent = note;
+      document.getElementById("weight-update-note").style.display = "";
+    }
+  }
+
+  await saveUserData();
+  document.getElementById("weight-val").value = "";
+  showToast("✅ משקל נשמר!");
+  renderWeight(); renderDashboard();
+};
+
+function renderWeight() {
+  const wl = userData.weightLog || [];
+  const p = userData.profile || {};
+  const last = wl.length ? wl[wl.length-1].weight : null;
+  const bmi = last && p.height ? (last / ((+p.height/100)**2)).toFixed(1) : null;
+  const weightLeft = last && p.goalWeight ? (+last - +p.goalWeight).toFixed(1) : null;
+
+  const sg = document.getElementById("weight-stats");
+  sg.innerHTML = [
+    { label:'משקל נוכחי', value: last ? last : "—", unit:'ק"ג', color:"var(--blue)" },
+    { label:"יעד", value: p.goalWeight || "—", unit:'ק"ג', color:"var(--green)" },
+    { label:"BMI", value: bmi || "—", unit:"", color: bmi < 25 ? "var(--green)" : bmi < 30 ? "var(--orange)" : "var(--red)" },
+  ].map(s => `<div class="stat-card">
+    <div class="stat-val" style="color:${s.color};">${s.value}<span style="font-size:13px;">${s.unit}</span></div>
+    <div class="stat-lbl">${s.label}</div>
+  </div>`).join("");
+
+  const banner = document.getElementById("weight-goal-banner");
+  if (weightLeft !== null) {
+    banner.style.display = "";
+    document.getElementById("weight-goal-text").textContent =
+      +weightLeft > 0 ? `🎯 נשאר ${weightLeft} ק"ג להגיע ליעד!` : "🏆 הגעת ליעד המשקל!";
+  } else banner.style.display = "none";
+
+  document.getElementById("weight-date").value = todayStr();
+
+  // Chart
+  const cd = wl.slice(-30);
+  if (cd.length > 1) {
+    document.getElementById("chart-card").style.display = "";
+    const minW = Math.min(...cd.map(w=>w.weight))-1;
+    const maxW = Math.max(...cd.map(w=>w.weight))+1;
+    const W=340, H=120;
+    const toX = i => (i/Math.max(1,cd.length-1))*W;
+    const toY = w => H - ((w-minW)/(maxW-minW))*H;
+    const pathD = cd.map((p,i)=>`${i===0?"M":"L"} ${toX(i)} ${toY(p.weight)}`).join(" ");
+    let goalLine = "";
+    if (p.goalWeight) goalLine = `<line x1="0" y1="${toY(+p.goalWeight)}" x2="${W}" y2="${toY(+p.goalWeight)}" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+    document.getElementById("weight-chart").innerHTML = `
+      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--blue)" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="var(--blue)" stop-opacity="0"/>
+      </linearGradient></defs>
+      <path d="${pathD} L ${toX(cd.length-1)} ${H} L 0 ${H} Z" fill="url(#wg)"/>
+      <path d="${pathD}" stroke="var(--blue)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      ${cd.map((p,i)=>`<circle cx="${toX(i)}" cy="${toY(p.weight)}" r="4" fill="var(--blue)"/>`).join("")}
+      ${goalLine}`;
+    document.getElementById("chart-from").textContent = fmtDate(cd[0].date);
+    document.getElementById("chart-to").textContent = fmtDate(cd[cd.length-1].date);
+  } else document.getElementById("chart-card").style.display = "none";
+
+  // Log list
+  const ll = document.getElementById("weight-log-list");
+  if (!wl.length) { ll.innerHTML = '<p style="color:var(--dim);font-size:14px;">עדיין אין שקילות</p>'; return; }
+  ll.innerHTML = [...wl].reverse().map(w =>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+      <span style="color:var(--muted);font-size:14px;">${fmtDate(w.date)}</span>
+      <span style="font-weight:700;color:var(--blue);">${w.weight} ק"ג</span>
+    </div>`
+  ).join("");
+}
+
+// ── HISTORY ──────────────────────────────────────────────────────
+window.renderHistory = () => {
+  const from = document.getElementById("hist-from").value;
+  const to = document.getElementById("hist-to").value;
+  const allDates = new Set([
+    ...Object.keys(userData.nutritionLog || {}),
+    ...Object.keys(userData.fitnessLog || {}),
+    ...(userData.weightLog||[]).map(w=>w.date),
+  ]);
+  const dates = [...allDates].filter(d => (!from || d >= from) && (!to || d <= to)).sort((a,b)=>b.localeCompare(a));
+  document.getElementById("hist-count").textContent = dates.length + " ימים נמצאו";
+  const hl = document.getElementById("history-list");
+  if (!dates.length) { hl.innerHTML = '<div class="card"><p style="color:var(--dim);">אין נתונים לתצוגה</p></div>'; return; }
+  const p = userData.profile || {};
+  hl.innerHTML = dates.map(d => {
+    const nutDay = userData.nutritionLog[d] || {};
+    const fitDay = userData.fitnessLog[d] || {};
+    const wEntry = (userData.weightLog||[]).find(w=>w.date===d);
+    const dayKcal = getTotalKcal(nutDay);
+    const dow = new Date(d).getDay();
+    const dayPlan = WEEKLY_PLAN[dow];
+    return `<div class="hist-day-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <h4 style="font-weight:800;font-size:15px;">${fmtDate(d)}</h4>
+          <span style="color:var(--dim);font-size:12px;">${new Date(d).toLocaleDateString("he-IL",{weekday:"long"})}</span>
+        </div>
+        ${wEntry ? `<span class="badge" style="background:rgba(56,189,248,0.1);color:var(--blue);">⚖️ ${wEntry.weight} ק"ג</span>` : ""}
+      </div>
+      <div class="hist-mini-grid">
+        <div class="hist-mini">
+          <div style="color:var(--dim);font-size:11px;margin-bottom:4px;">🥗 תזונה</div>
+          <div style="font-weight:800;color:var(--green);font-size:18px;">${dayKcal}</div>
+          <div style="color:var(--darker);font-size:11px;">קק"ל · ${(nutDay.eaten||[]).length} פריטים</div>
+        </div>
+        <div class="hist-mini">
+          <div style="color:var(--dim);font-size:11px;margin-bottom:4px;">💪 כושר</div>
+          <div style="font-weight:800;color:var(--purple);font-size:18px;">${fitDay.done?.length||0}/${dayPlan.exercises.length}</div>
+          <div style="color:var(--darker);font-size:11px;">${dayPlan.type}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+};
+
+// ── DASHBOARD ────────────────────────────────────────────────────
+function renderDashboard() {
+  const p = userData.profile || {};
+  const wl = userData.weightLog || [];
+  const lastW = wl.length ? wl[wl.length-1].weight : null;
+  const weightLeft = lastW && p.goalWeight ? (+lastW - +p.goalWeight).toFixed(1) : null;
+
+  // streak
+  let streak = 0;
+  const cd = new Date();
+  while(streak < 365) {
+    const ds = cd.toISOString().slice(0,10);
+    if ((userData.fitnessLog[ds]?.done?.length||0)>0 || (userData.nutritionLog[ds]?.eaten?.length||0)>0)
+      { streak++; cd.setDate(cd.getDate()-1); } else break;
+  }
+  const weekDays = Array.from({length:7},(_,i)=>{ const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().slice(0,10);});
+  const workoutsWeek = weekDays.filter(d=>(userData.fitnessLog[d]?.done?.length||0)>0).length;
+
+  document.getElementById("no-profile-banner").style.display = !p.startWeight ? "" : "none";
+
+  document.getElementById("dash-stats").innerHTML = [
+    { label:"🔥 רצף", value: streak + " ימים", color:"var(--orange)" },
+    { label:"💪 אימונים השבוע", value: workoutsWeek + "/7", color:"var(--purple)" },
+    { label:'⚖️ משקל נוכחי', value: lastW ? lastW + ' ק"ג' : "—", color:"var(--blue)" },
+    { label:"🎯 נשאר ליעד", value: weightLeft ? weightLeft + ' ק"ג' : "—", color:"var(--green)" },
+  ].map(s => `<div class="stat-card">
+    <div class="stat-val" style="color:${s.color};font-size:22px;">${s.value}</div>
+    <div class="stat-lbl">${s.label}</div>
+  </div>`).join("");
+
+  // Calories
+  const target = p.targetKcal || 1600;
+  const day = userData.nutritionLog[todayStr()] || { eaten:[], custom:[] };
+  const total = getTotalKcal(day);
+  const deficit = target - total;
+  const kcalCard = document.getElementById("dash-kcal-card");
+  kcalCard.style.display = "";
+  document.getElementById("dash-kcal-text").textContent = total + " / " + target + ' קק"ל';
+  document.getElementById("dash-kcal-text").style.color = total > target ? "var(--red)" : "var(--green)";
+  const bar = document.getElementById("dash-kcal-bar");
+  bar.style.width = Math.min(100, Math.round(total/target*100)) + "%";
+  bar.style.height = "10px";
+  bar.style.background = total > target ? "var(--red)" : "var(--green)";
+  const dl = document.getElementById("dash-deficit");
+  dl.textContent = deficit >= 0 ? `✅ גרעון של ${deficit} קק"ל` : `⚠️ חריגה של ${Math.abs(deficit)} קק"ל`;
+  dl.style.color = deficit >= 0 ? "var(--green)" : "var(--red)";
+
+  // Workout
+  const dow = new Date().getDay();
+  const plan = WEEKLY_PLAN[dow];
+  const fitDay = userData.fitnessLog[todayStr()] || { done:[] };
+  const fitPct = plan.exercises.length ? Math.round(fitDay.done.length/plan.exercises.length*100) : 0;
+  document.getElementById("dash-workout-card").style.display = "";
+  document.getElementById("dash-workout-badge").textContent = plan.type;
+  document.getElementById("dash-workout-badge").style.background = "rgba(129,140,248,0.15)";
+  document.getElementById("dash-workout-badge").style.color = "var(--purple)";
+  const wb = document.getElementById("dash-workout-bar");
+  wb.style.width = fitPct + "%"; wb.style.height = "8px";
+  document.getElementById("dash-workout-text").textContent =
+    fitPct === 100 ? "✅ האימון הושלם!" : `${fitDay.done.length}/${plan.exercises.length} תרגילים בוצעו`;
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+function initApp() {
+  renderDashboard();
+  document.getElementById("weight-date").value = todayStr();
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+async function boot() {
+  buildKeypad("login"); buildKeypad("reg");
+  loadSavedUsers();
+
+  // Auto-login if last session
+  const lastUid = localStorage.getItem("lm_last");
+  if (lastUid) {
+    try {
+      const snap = await getDoc(userRef(lastUid));
+      if (snap.exists()) {
+        const data = snap.data();
+        // Still require PIN - just pre-fill username
+        document.getElementById("login-username").value = data.username || lastUid;
+      }
+    } catch(e) {}
+  }
+
+  document.getElementById("loading-screen").style.display = "none";
+  document.getElementById("auth-screen").style.display = "flex";
+}
+
+boot();
+</script>
+</body>
+</html>
