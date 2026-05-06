@@ -940,33 +940,68 @@ function renderNutrition() {
 window.toggleMealRow = (id) => toggleMeal(id);
 
 // ── FITNESS ──────────────────────────────────────────────────────
-function getFitDay() { return userData.fitnessLog[todayStr()] || { done:[] }; }
+let selectedFitDow = new Date().getDay(); // currently viewed day of week
+
+function getFitDayFor(dow) {
+  // find the most recent date matching this dow, default today if same
+  const today = todayStr();
+  const todayDow = new Date().getDay();
+  if (dow === todayDow) return { dateStr: today, data: userData.fitnessLog[today] || { done:[], custom:[] } };
+  // find date of this dow in current week (Sun=0)
+  const d = new Date();
+  const diff = dow - todayDow;
+  d.setDate(d.getDate() + diff);
+  const ds = d.toISOString().slice(0,10);
+  return { dateStr: ds, data: userData.fitnessLog[ds] || { done:[], custom:[] } };
+}
 
 async function toggleExercise(id) {
-  const day = getFitDay();
-  const done = new Set(day.done || []);
+  const { dateStr, data } = getFitDayFor(selectedFitDow);
+  const done = new Set(data.done || []);
   if (done.has(id)) done.delete(id); else done.add(id);
-  userData.fitnessLog[todayStr()] = { ...day, done: [...done] };
+  userData.fitnessLog[dateStr] = { ...data, done: [...done] };
   await saveUserData();
   renderFitness(); renderDashboard();
 }
 
+window.addCustomExercise = async () => {
+  const name = document.getElementById("custom-ex-name").value.trim();
+  const sets = document.getElementById("custom-ex-sets").value.trim();
+  if (!name) return;
+  const { dateStr, data } = getFitDayFor(selectedFitDow);
+  const customEx = [...(data.custom||[]), { id: "cx" + Date.now(), name, sets: sets||"—", muscle:"אישי" }];
+  userData.fitnessLog[dateStr] = { ...data, custom: customEx };
+  document.getElementById("custom-ex-name").value = "";
+  document.getElementById("custom-ex-sets").value = "";
+  await saveUserData();
+  renderFitness();
+};
+
+window.removeCustomExercise = async (id) => {
+  const { dateStr, data } = getFitDayFor(selectedFitDow);
+  data.custom = (data.custom||[]).filter(e => e.id !== id);
+  userData.fitnessLog[dateStr] = data;
+  await saveUserData();
+  renderFitness();
+};
+
 function renderFitness() {
-  const dow = new Date().getDay();
-  const plan = WEEKLY_PLAN[dow];
-  const day = getFitDay();
+  const plan = WEEKLY_PLAN[selectedFitDow];
+  const { dateStr, data: day } = getFitDayFor(selectedFitDow);
   const done = new Set(day.done || []);
-  const pct = plan.exercises.length ? Math.round(done.size / plan.exercises.length * 100) : 0;
+  const allExercises = [...plan.exercises, ...(day.custom||[])];
+  const pct = allExercises.length ? Math.round(done.size / allExercises.length * 100) : 0;
 
   document.getElementById("fit-type").textContent = plan.type;
-  document.getElementById("fit-subtitle").textContent = plan.label + " · " + plan.exercises.length + " תרגילים";
+  document.getElementById("fit-subtitle").textContent = plan.label + " · " + allExercises.length + " תרגילים";
   document.getElementById("fit-pct").textContent = pct + "%";
   document.getElementById("fit-pct").style.color = pct === 100 ? "var(--green)" : "var(--purple)";
   const bar = document.getElementById("fit-bar");
   bar.style.width = pct + "%"; bar.style.height = "8px";
 
+  // Exercises list
   const ec = document.getElementById("exercises-container");
-  ec.innerHTML = plan.exercises.map(ex => {
+  const planHtml = plan.exercises.map(ex => {
     const d = done.has(ex.id);
     return `<div class="item-row ${d?'done-purple':''}" onclick="toggleExRow('${ex.id}')">
       <div style="display:flex;align-items:center;gap:12px;">
@@ -980,24 +1015,67 @@ function renderFitness() {
     </div>`;
   }).join("");
 
-  // Week dots
+  const customHtml = (day.custom||[]).map(ex => {
+    const d = done.has(ex.id);
+    return `<div class="item-row ${d?'done-purple':''}" style="border-color:rgba(251,146,60,0.2);">
+      <div style="display:flex;align-items:center;gap:12px;flex:1;" onclick="toggleExRow('${ex.id}')">
+        <div class="check-circle ${d?'purple':''}">${d?"✓":""}</div>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:${d?'var(--text)':'var(--muted)'};">${ex.name}</div>
+          <div style="color:var(--darker);font-size:12px;">אישי</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="badge" style="background:rgba(251,146,60,0.15);color:var(--orange);">${ex.sets}</span>
+        <button class="btn-danger" onclick="removeCustomExercise('${ex.id}')">×</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  ec.innerHTML = planHtml + (day.custom?.length ? `
+    <p style="color:var(--orange);font-size:12px;margin:12px 0 8px;font-weight:700;">➕ תרגילים שהוספת</p>
+    ${customHtml}` : customHtml);
+
+  // Add custom exercise form
+  const addForm = `<div class="card" style="margin-top:6px;">
+    <h4 style="color:var(--orange);font-size:13px;margin-bottom:12px;">➕ הוסף תרגיל ליום זה</h4>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <div style="flex:2;"><input class="field-input" id="custom-ex-name" placeholder="שם התרגיל"></div>
+      <div style="flex:1;"><input class="field-input" id="custom-ex-sets" placeholder='סטים (למשל 3×12)'></div>
+      <button class="btn-add" onclick="addCustomExercise()">+</button>
+    </div>
+  </div>`;
+  ec.innerHTML += addForm;
+
+  // Week dots - Sun to Sat (RTL: show 0,1,2,3,4,5,6)
   const wd = document.getElementById("week-dots");
   wd.innerHTML = "";
-  const today = todayStr();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
+  const DAY_LABELS = ["א","ב","ג","ד","ה","ו","ש"];
+  for (let dow = 0; dow <= 6; dow++) {
+    const plan2 = WEEKLY_PLAN[dow];
+    const d = new Date();
+    const todayDow = new Date().getDay();
+    d.setDate(d.getDate() + (dow - todayDow));
     const ds = d.toISOString().slice(0,10);
     const hasFit = (userData.fitnessLog[ds]?.done?.length || 0) > 0;
-    const isToday = ds === today;
-    const lbl = d.toLocaleDateString("he-IL", { weekday:"narrow" });
-    wd.innerHTML += `<div class="week-dot">
-      <div class="week-dot-circle" style="background:${hasFit?'var(--green)':isToday?'rgba(74,222,128,0.15)':'rgba(255,255,255,0.04)'};border:1px solid ${isToday?'var(--green)':'transparent'};">
-        ${hasFit?"✓":""}
+    const isToday = dow === todayDow;
+    const isSelected = dow === selectedFitDow;
+    wd.innerHTML += `<div class="week-dot" onclick="selectFitDay(${dow})" style="cursor:pointer;">
+      <div class="week-dot-circle" style="
+        background:${hasFit?'var(--green)':isSelected?'rgba(129,140,248,0.3)':isToday?'rgba(74,222,128,0.15)':'rgba(255,255,255,0.04)'};
+        border:2px solid ${isSelected?'var(--purple)':isToday?'var(--green)':'transparent'};
+        font-size:11px;color:${hasFit?'#0f172a':'var(--text)'};font-weight:700;">
+        ${hasFit?"✓":plan2.type.slice(0,2)}
       </div>
-      <div class="week-dot-lbl">${lbl}</div>
+      <div class="week-dot-lbl" style="color:${isSelected?'var(--purple)':isToday?'var(--green)':'var(--darker)'};">${DAY_LABELS[dow]}</div>
     </div>`;
   }
 }
+
+window.selectFitDay = (dow) => {
+  selectedFitDow = dow;
+  renderFitness();
+};
 
 window.toggleExRow = (id) => toggleExercise(id);
 
@@ -1188,8 +1266,9 @@ function renderDashboard() {
   // Workout
   const dow = new Date().getDay();
   const plan = WEEKLY_PLAN[dow];
-  const fitDay = userData.fitnessLog[todayStr()] || { done:[] };
-  const fitPct = plan.exercises.length ? Math.round(fitDay.done.length/plan.exercises.length*100) : 0;
+  const fitDay = userData.fitnessLog[todayStr()] || { done:[], custom:[] };
+  const allEx = [...plan.exercises, ...(fitDay.custom||[])];
+  const fitPct = allEx.length ? Math.round((fitDay.done?.length||0)/allEx.length*100) : 0;
   document.getElementById("dash-workout-card").style.display = "";
   document.getElementById("dash-workout-badge").textContent = plan.type;
   document.getElementById("dash-workout-badge").style.background = "rgba(129,140,248,0.15)";
@@ -1197,7 +1276,7 @@ function renderDashboard() {
   const wb = document.getElementById("dash-workout-bar");
   wb.style.width = fitPct + "%"; wb.style.height = "8px";
   document.getElementById("dash-workout-text").textContent =
-    fitPct === 100 ? "✅ האימון הושלם!" : `${fitDay.done.length}/${plan.exercises.length} תרגילים בוצעו`;
+    fitPct === 100 ? "✅ האימון הושלם!" : `${fitDay.done?.length||0}/${allEx.length} תרגילים בוצעו`;
 }
 
 // ── Init ─────────────────────────────────────────────────────────
