@@ -1345,58 +1345,183 @@ async function toggleExercise(id) {
   renderFitness(); renderDashboard();
 }
 
+// ── Expanded exercise state ──────────────────────────────────────
+let expandedEx = null; // id of currently open exercise panel
+
+// Update sets/reps config for an exercise
+window.updateExConfig = async (exId, field, delta) => {
+  const { dateStr, data } = getFitDayFor(selectedFitDow);
+  const cfg = data.exConfig || {};
+  if (!cfg[exId]) {
+    // init from plan
+    const plan = WEEKLY_PLAN[selectedFitDow];
+    const allEx = [...plan.exercises, ...(data.custom||[])];
+    const ex = allEx.find(e => e.id === exId);
+    if (ex) {
+      const m = String(ex.sets).match(/^(\d+)[×x](\d+)/);
+      cfg[exId] = { sets: m ? +m[1] : 3, reps: m ? +m[2] : 12, isTimed: isTimedEx(ex.sets) };
+    }
+  }
+  if (!cfg[exId]) cfg[exId] = { sets:3, reps:12, isTimed:false };
+  cfg[exId][field] = Math.max(1, (cfg[exId][field]||3) + delta);
+
+  // If sets changed, clear extra set completions
+  if (field === "sets") {
+    const sets = data.sets || {};
+    const newCount = cfg[exId].sets;
+    for (let i = newCount; i < newCount + 10; i++) delete sets[exId + "_" + i];
+    data.sets = sets;
+    // Re-check done
+    const doneSets = Array.from({length:newCount},(_,k)=>sets[exId+"_"+k]).filter(Boolean).length;
+    const done = new Set(data.done||[]);
+    if (doneSets === newCount) done.add(exId); else done.delete(exId);
+    data.done = [...done];
+  }
+
+  userData.fitnessLog[dateStr] = { ...data, exConfig: cfg };
+  await saveUserData();
+  renderFitness();
+};
+
 // Toggle individual set
 window.toggleSet = async (exId, setIdx) => {
   const { dateStr, data } = getFitDayFor(selectedFitDow);
   const sets = data.sets || {};
   const key = exId + "_" + setIdx;
   sets[key] = !sets[key];
-  // Auto-check exercise if all sets done
+  // Get effective sets count
+  const cfg = (data.exConfig||{})[exId];
   const plan = WEEKLY_PLAN[selectedFitDow];
   const allEx = [...plan.exercises, ...(data.custom||[])];
   const ex = allEx.find(e => e.id === exId);
-  if (ex) {
-    const total = parseSetsCount(ex.sets);
-    const doneSets = Array.from({length:total},(_,i)=>sets[exId+"_"+i]).filter(Boolean).length;
-    const done = new Set(data.done || []);
-    if (doneSets === total) done.add(exId); else done.delete(exId);
-    data.done = [...done];
-  }
+  const total = cfg ? cfg.sets : (ex ? parseSetsCount(ex.sets) : 3);
+  const doneSets = Array.from({length:total},(_,i)=>sets[exId+"_"+i]).filter(Boolean).length;
+  const done = new Set(data.done || []);
+  if (doneSets === total) done.add(exId); else done.delete(exId);
+  data.done = [...done];
   userData.fitnessLog[dateStr] = { ...data, sets };
   await saveUserData();
   renderFitness(); renderDashboard();
 };
 
-window.addCustomExercise = async () => {
-  const name = document.getElementById("custom-ex-name").value.trim();
-  const sets = document.getElementById("custom-ex-sets").value.trim();
-  if (!name) return;
-  const { dateStr, data } = getFitDayFor(selectedFitDow);
-  const customEx = [...(data.custom||[]), { id: "cx" + Date.now(), name, sets: sets||"3×12", muscle:"אישי" }];
-  userData.fitnessLog[dateStr] = { ...data, custom: customEx };
-  document.getElementById("custom-ex-name").value = "";
-  document.getElementById("custom-ex-sets").value = "";
-  await saveUserData();
+// ── Build exercise card HTML ─────────────────────────────────────
+function buildExCard(ex, done, setsData, exConfig, prevDay, isCustom) {
+  const isDone = done.has(ex.id);
+  const muscleColor = MUSCLE_COLORS[ex.muscle] || "var(--muted)";
+  const timed = isTimedEx(ex.sets);
+  const seconds = timed ? parseSeconds(ex.sets) : 0;
+  const isExpanded = expandedEx === ex.id;
+
+  // Get effective config (custom or from plan string)
+  const cfg = exConfig[ex.id];
+  const setsCount = cfg ? cfg.sets : parseSetsCount(ex.sets);
+  const repsVal = cfg ? cfg.reps : (() => { const m = String(ex.sets).match(/[×x](\d+)/); return m ? +m[1] : 12; })();
+
+  // Done sets count
+  const doneSetsCount = Array.from({length:setsCount},(_,i)=>setsData[ex.id+"_"+i]).filter(Boolean).length;
+  const setsPct = setsCount ? Math.round(doneSetsCount/setsCount*100) : 0;
+
+  // Previous performance
+  let prevHtml = "";
+  if (prevDay) {
+    const prevDone = new Set(prevDay.done || []);
+    const prevSets = prevDay.sets || {};
+    const prevCfg = (prevDay.exConfig||{})[ex.id];
+    const prevTotal = prevCfg ? prevCfg.sets : parseSetsCount(ex.sets);
+    const prevCount = Array.from({length:prevTotal},(_,i)=>prevSets[ex.id+"_"+i]).filter(Boolean).length;
+    if (prevDone.has(ex.id)) prevHtml = `<span class="ex-prev">שבוע שעבר: ✓ ${prevTotal} סטים</span>`;
+    else if (prevCount > 0) prevHtml = `<span class="ex-prev">שבוע שעבר: ${prevCount}/${prevTotal}</span>`;
+  }
+
+  // Timer button
+  const timerHtml = timed ? `<button class="timer-btn" onclick="event.stopPropagation();startTimer(${seconds},'${ex.name}')">⏱ ${seconds}שנ'</button>` : "";
+
+  // Delete (custom only)
+  const deleteHtml = isCustom
+    ? `<button class="delete-btn" style="display:block;" onclick="event.stopPropagation();removeCustomExercise('${ex.id}')">×</button>`
+    : "";
+
+  // Expandable panel content
+  const expandedPanel = isExpanded ? `
+    <div style="border-top:1px solid rgba(255,255,255,0.07);margin-top:10px;padding-top:12px;">
+
+      <!-- Edit sets/reps row -->
+      <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+        <div style="flex:1;background:rgba(0,0,0,0.3);border-radius:10px;padding:8px 10px;text-align:center;">
+          <div style="color:var(--dim);font-size:10px;margin-bottom:6px;">סטים</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+            <button onclick="event.stopPropagation();updateExConfig('${ex.id}','sets',-1)" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:var(--text);font-size:16px;cursor:pointer;line-height:1;">−</button>
+            <span style="font-weight:900;font-size:20px;color:var(--purple);min-width:24px;text-align:center;">${setsCount}</span>
+            <button onclick="event.stopPropagation();updateExConfig('${ex.id}','sets',1)" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:var(--text);font-size:16px;cursor:pointer;line-height:1;">+</button>
+          </div>
+        </div>
+        <div style="flex:1;background:rgba(0,0,0,0.3);border-radius:10px;padding:8px 10px;text-align:center;">
+          <div style="color:var(--dim);font-size:10px;margin-bottom:6px;">${timed ? 'שניות' : 'חזרות'}</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+            <button onclick="event.stopPropagation();updateExConfig('${ex.id}','reps',-1)" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:var(--text);font-size:16px;cursor:pointer;line-height:1;">−</button>
+            <span style="font-weight:900;font-size:20px;color:var(--blue);min-width:24px;text-align:center;">${repsVal}</span>
+            <button onclick="event.stopPropagation();updateExConfig('${ex.id}','reps',1)" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:var(--text);font-size:16px;cursor:pointer;line-height:1;">+</button>
+          </div>
+        </div>
+        ${timed ? `<div style="flex:1;display:flex;align-items:center;justify-content:center;">
+          <button class="timer-btn" style="width:100%;padding:12px 0;" onclick="event.stopPropagation();startTimer(${seconds},'${ex.name}')">⏱ הפעל</button>
+        </div>` : ""}
+      </div>
+
+      <!-- Set rows -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+        ${Array.from({length:setsCount},(_,i) => {
+          const setDone = setsData[ex.id+"_"+i];
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;background:${setDone?'rgba(129,140,248,0.12)':'rgba(255,255,255,0.03)'};border:1px solid ${setDone?'rgba(129,140,248,0.3)':'rgba(255,255,255,0.05)'};">
+            <span style="color:${setDone?'var(--purple)':'var(--dim)'};font-weight:700;font-size:14px;min-width:40px;">סט ${i+1}</span>
+            <span style="color:var(--darker);font-size:13px;flex:1;">${repsVal} ${timed ? 'שנ\'' : 'חזרות'}</span>
+            <button onclick="event.stopPropagation();toggleSet('${ex.id}',${i})" style="padding:6px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:800;font-size:13px;background:${setDone?'rgba(129,140,248,0.2)':'rgba(74,222,128,0.15)'};color:${setDone?'var(--purple)':'var(--green)'};">
+              ${setDone ? '✓ בוצע' : '+ בוצע'}
+            </button>
+          </div>`;
+        }).join("")}
+      </div>
+
+      <!-- Progress bar -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="progress-wrap" style="flex:1;height:8px;">
+          <div class="progress-bar" style="width:${setsPct}%;height:8px;background:${isDone?'var(--green)':'var(--purple)'};box-shadow:0 0 8px ${isDone?'#4ade8060':'#818cf860'};transition:width 0.4s ease;"></div>
+        </div>
+        <span style="color:${isDone?'var(--green)':'var(--purple)'};font-weight:800;font-size:13px;min-width:36px;">${doneSetsCount}/${setsCount}</span>
+      </div>
+    </div>` : `
+    <!-- Collapsed mini progress -->
+    ${doneSetsCount > 0 ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+      <div class="progress-wrap" style="flex:1;height:5px;">
+        <div class="progress-bar" style="width:${setsPct}%;height:5px;background:${isDone?'var(--green)':'var(--purple)'};"></div>
+      </div>
+      <span style="color:${isDone?'var(--green)':'var(--purple)'};font-size:11px;font-weight:700;">${doneSetsCount}/${setsCount}</span>
+    </div>` : ""}`;
+
+  return `<div class="ex-card ${isDone?'done-purple':''} ${isCustom?'custom-ex':''}" onclick="toggleExExpand('${ex.id}')">
+    <div class="ex-top">
+      <div class="check-circle ${isDone?'purple':''}" onclick="event.stopPropagation();toggleExRow('${ex.id}')" style="cursor:pointer;flex-shrink:0;">${isDone?"✓":""}</div>
+      <div class="ex-body">
+        <div class="ex-name" style="color:${isDone?'var(--text)':'var(--muted)'};">${ex.name}</div>
+        <div class="ex-meta">
+          <span class="muscle-badge" style="background:${muscleColor}20;color:${muscleColor};border:1px solid ${muscleColor}30;">${ex.muscle}</span>
+          <span class="badge" style="background:rgba(71,85,105,0.2);color:var(--darker);font-size:10px;">${setsCount}×${repsVal}${timed?"שנ'":""}</span>
+          ${prevHtml}
+        </div>
+      </div>
+      <div class="ex-actions">
+        <span style="color:var(--dim);font-size:16px;transition:transform 0.2s;transform:rotate(${isExpanded?'180':'0'}deg);">▾</span>
+        ${deleteHtml}
+      </div>
+    </div>
+    ${expandedPanel}
+  </div>`;
+}
+
+window.toggleExExpand = (id) => {
+  expandedEx = expandedEx === id ? null : id;
   renderFitness();
 };
-
-window.removeCustomExercise = async (id) => {
-  const { dateStr, data } = getFitDayFor(selectedFitDow);
-  data.custom = (data.custom||[]).filter(e => e.id !== id);
-  userData.fitnessLog[dateStr] = data;
-  await saveUserData();
-  renderFitness();
-};
-
-window.toggleEditMode = () => {
-  editMode = !editMode;
-  renderFitness();
-};
-
-// ── Timer logic ──────────────────────────────────────────────────
-let timerInterval = null;
-let timerRemaining = 0;
-let timerRunning = false;
 
 window.startTimer = (seconds, name) => {
   clearInterval(timerInterval);
@@ -1445,64 +1570,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// ── Build exercise card HTML ─────────────────────────────────────
-function buildExCard(ex, done, setsData, prevDay, isCustom) {
-  const isDone = done.has(ex.id);
-  const muscleColor = MUSCLE_COLORS[ex.muscle] || "var(--muted)";
-  const setsCount = parseSetsCount(ex.sets);
-  const timed = isTimedEx(ex.sets);
-  const seconds = timed ? parseSeconds(ex.sets) : 0;
-
-  // Previous performance
-  let prevHtml = "";
-  if (prevDay) {
-    const prevDone = new Set(prevDay.done || []);
-    const prevSets = prevDay.sets || {};
-    const prevDoneCount = Array.from({length:setsCount},(_,i)=>prevSets[ex.id+"_"+i]).filter(Boolean).length;
-    if (prevDone.has(ex.id)) prevHtml = `<span class="ex-prev">פעם קודמת: ✓ ${ex.sets}</span>`;
-    else if (prevDoneCount > 0) prevHtml = `<span class="ex-prev">פעם קודמת: ${prevDoneCount}/${setsCount} סטים</span>`;
-  }
-
-  // Set dots
-  const setDotsHtml = Array.from({length: setsCount}, (_, i) => {
-    const key = ex.id + "_" + i;
-    const setDone = setsData[key];
-    return `<div class="set-dot ${setDone?(isDone?'done-green-s':'done'):''}" onclick="event.stopPropagation();toggleSet('${ex.id}',${i})">${i+1}</div>`;
-  }).join("");
-
-  // Timer button
-  const timerHtml = timed ? `<button class="timer-btn" onclick="event.stopPropagation();startTimer(${seconds},'${ex.name}')" title="הפעל טיימר">⏱ ${seconds}שנ'</button>` : "";
-
-  // Delete button (custom only or edit mode)
-  const deleteHtml = isCustom
-    ? `<button class="delete-btn" style="display:block;" onclick="event.stopPropagation();removeCustomExercise('${ex.id}')">×</button>`
-    : `<button class="delete-btn" onclick="event.stopPropagation();">✏️</button>`;
-
-  return `<div class="ex-card ${isDone?'done-purple':''} ${isCustom?'custom-ex':''} ${editMode?'edit-mode':''}">
-    <div class="ex-top">
-      <div class="check-circle ${isDone?'purple':''}" onclick="toggleExRow('${ex.id}')" style="cursor:pointer;flex-shrink:0;">${isDone?"✓":""}</div>
-      <div class="ex-body" onclick="toggleExRow('${ex.id}')" style="cursor:pointer;">
-        <div class="ex-name" style="color:${isDone?'var(--text)':'var(--muted)'};">${ex.name}</div>
-        <div class="ex-meta">
-          <span class="muscle-badge" style="background:${muscleColor}20;color:${muscleColor};border:1px solid ${muscleColor}30;">${ex.muscle}</span>
-          <span class="badge" style="background:rgba(71,85,105,0.2);color:var(--darker);font-size:10px;">${ex.sets}</span>
-          ${prevHtml}
-        </div>
-      </div>
-      <div class="ex-actions">
-        ${timerHtml}
-        ${deleteHtml}
-      </div>
-    </div>
-    <div class="set-dots">${setDotsHtml}</div>
-  </div>`;
-}
-
 function renderFitness() {
   const plan = WEEKLY_PLAN[selectedFitDow];
   const { dateStr, data: day } = getFitDayFor(selectedFitDow);
   const done = new Set(day.done || []);
   const setsData = day.sets || {};
+  const exConfig = day.exConfig || {};
   const allExercises = [...plan.exercises, ...(day.custom||[])];
   const pct = allExercises.length ? Math.round(done.size / allExercises.length * 100) : 0;
 
@@ -1521,7 +1594,7 @@ function renderFitness() {
       </div>
       <div style="flex:1;">
         <div class="progress-wrap" style="height:6px;">
-          <div class="progress-bar" style="width:${pctKcal}%;background:${totalKcal>target?'var(--red)':'var(--green)'};height:6px;box-shadow:0 0 6px ${totalKcal>target?'#f8717180':'#4ade8080'};"></div>
+          <div class="progress-bar" style="width:${pctKcal}%;background:${totalKcal>target?'var(--red)':'var(--green)'};height:6px;"></div>
         </div>
       </div>
       <div class="nut-sum-item" style="text-align:left;">
@@ -1541,16 +1614,10 @@ function renderFitness() {
   const prevDay = getPrevWeekFitDay(selectedFitDow);
   const ec = document.getElementById("exercises-container");
 
-  const editToggleHtml = `<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-    <button onclick="toggleEditMode()" style="padding:6px 14px;background:${editMode?'rgba(251,146,60,0.15)':'rgba(255,255,255,0.05)'};border:1px solid ${editMode?'var(--orange)':'var(--border)'};color:${editMode?'var(--orange)':'var(--muted)'};border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;">
-      ${editMode?'✅ סיום עריכה':'✏️ מצב עריכה'}
-    </button>
-  </div>`;
-
-  const planHtml = plan.exercises.map(ex => buildExCard(ex, done, setsData, prevDay, false)).join("");
+  const planHtml = plan.exercises.map(ex => buildExCard(ex, done, setsData, exConfig, prevDay, false)).join("");
   const customSection = day.custom?.length ? `
     <p style="color:var(--orange);font-size:12px;margin:12px 0 8px;font-weight:700;">➕ תרגילים שהוספת</p>
-    ${(day.custom||[]).map(ex => buildExCard(ex, done, setsData, prevDay, true)).join("")}` : "";
+    ${(day.custom||[]).map(ex => buildExCard(ex, done, setsData, exConfig, prevDay, true)).join("")}` : "";
 
   const addForm = `<div class="card" style="margin-top:6px;">
     <h4 style="color:var(--orange);font-size:13px;margin-bottom:12px;">➕ הוסף תרגיל ליום זה</h4>
@@ -1561,7 +1628,7 @@ function renderFitness() {
     </div>
   </div>`;
 
-  ec.innerHTML = editToggleHtml + planHtml + customSection + addForm;
+  ec.innerHTML = planHtml + customSection + addForm;
 
   // Week dots RTL
   const wd = document.getElementById("week-dots");
@@ -1588,7 +1655,7 @@ function renderFitness() {
   }
 }
 
-window.selectFitDay = (dow) => { selectedFitDow = dow; renderFitness(); };
+window.selectFitDay = (dow) => { selectedFitDow = dow; expandedEx = null; renderFitness(); };
 window.toggleExRow = (id) => toggleExercise(id);
 
 // ── WEIGHT ───────────────────────────────────────────────────────
