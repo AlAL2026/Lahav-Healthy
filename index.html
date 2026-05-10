@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lean Mode">
 <meta name="theme-color" content="#020617">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Lean Mode</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
@@ -26,56 +28,62 @@
   /* ── Auth Screen ── */
   #auth-screen {
     min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; padding: 30px 24px;
+    align-items: center; justify-content: flex-start; padding: 20px 16px;
+    padding-top: max(20px, env(safe-area-inset-top));
     background: radial-gradient(ellipse at 50% 0%, rgba(74,222,128,0.08) 0%, transparent 70%),
                 linear-gradient(135deg, #020617, #0f172a);
+    overflow-y: auto;
   }
-  .auth-logo { font-size: 52px; letter-spacing: 4px; color: var(--green); margin-bottom: 6px; }
-  .auth-sub { color: var(--dim); font-size: 14px; margin-bottom: 40px; }
+  .auth-logo { font-size: 44px; letter-spacing: 4px; color: var(--green); margin-bottom: 4px; margin-top: 16px; }
+  .auth-sub { color: var(--dim); font-size: 13px; margin-bottom: 20px; }
   .auth-card {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(74,222,128,0.2);
-    border-radius: 24px; padding: 32px 28px; width: 100%; max-width: 360px;
+    border-radius: 20px; padding: 20px 18px; width: 100%; max-width: 360px;
   }
-  .auth-tabs { display: flex; gap: 0; margin-bottom: 28px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; }
+  .auth-tabs { display: flex; gap: 0; margin-bottom: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; }
   .auth-tab {
-    flex: 1; padding: 10px; text-align: center; border-radius: 10px; cursor: pointer;
+    flex: 1; padding: 9px; text-align: center; border-radius: 10px; cursor: pointer;
     font-weight: 700; font-size: 14px; color: var(--dim); border: none; background: transparent; transition: all 0.2s;
   }
   .auth-tab.active { background: var(--green); color: #0f172a; }
   .auth-label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 6px; }
   .auth-input {
-    width: 100%; padding: 12px 16px; background: rgba(0,0,0,0.4);
+    width: 100%; padding: 11px 14px; background: rgba(0,0,0,0.4);
     border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-    color: var(--text); font-size: 16px; margin-bottom: 16px; outline: none; transition: border 0.2s;
+    color: var(--text); font-size: 16px; margin-bottom: 14px; outline: none; transition: border 0.2s;
+    box-sizing: border-box;
   }
   .auth-input:focus { border-color: var(--green); }
-  .pin-dots { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
-  .pin-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--dim); transition: all 0.2s; }
-  .pin-dot.filled { background: var(--green); border-color: var(--green); transform: scale(1.1); }
-  .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .pin-dots { display: flex; gap: 14px; justify-content: center; margin-bottom: 16px; }
+  .pin-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--dim); transition: all 0.2s; flex-shrink: 0; }
+  .pin-dot.filled { background: var(--green); border-color: var(--green); transform: scale(1.15); }
+  .pin-keypad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;
+  }
   .pin-key {
-    padding: 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-    border-radius: 14px; font-size: 20px; font-weight: 700; color: var(--text);
-    cursor: pointer; text-align: center; transition: all 0.15s; border: none;
-    font-family: 'Tajawal', sans-serif;
+    padding: 0; height: 52px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; font-size: 20px; font-weight: 700; color: var(--text);
+    cursor: pointer; text-align: center; transition: all 0.15s;
+    font-family: 'Tajawal', sans-serif; display: flex; align-items: center; justify-content: center;
   }
   .pin-key:active { background: rgba(74,222,128,0.2); transform: scale(0.95); }
-  .pin-key.del { color: var(--red); font-size: 16px; }
+  .pin-key.del { color: var(--red); font-size: 18px; }
   .btn-primary {
     width: 100%; padding: 14px; background: var(--green); color: #0f172a;
     border: none; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; transition: all 0.2s;
+    box-sizing: border-box;
   }
   .btn-primary:active { transform: scale(0.98); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .auth-error { color: var(--red); font-size: 13px; text-align: center; margin-top: 10px; min-height: 20px; }
-  .auth-users { margin-top: 16px; }
+  .auth-error { color: var(--red); font-size: 13px; text-align: center; margin-top: 8px; min-height: 18px; }
+  .auth-users { margin-top: 14px; }
   .user-chip {
     display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
     background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-    border-radius: 99px; font-size: 13px; cursor: pointer; margin: 4px; transition: all 0.2s;
+    border-radius: 99px; font-size: 13px; cursor: pointer; margin: 3px; transition: all 0.2s;
     color: var(--muted);
   }
-  .user-chip:hover { border-color: var(--green); color: var(--green); }
+  .user-chip:active { border-color: var(--green); color: var(--green); }
 
   /* ── App Layout ── */
   #app { display: none; min-height: 100vh; padding-bottom: 72px; }
@@ -412,7 +420,7 @@
       <label class="auth-label">קוד PIN (4 ספרות)</label>
       <div class="pin-dots" id="login-dots">
         <div class="pin-dot" id="login-d0"></div>
-        <div class="pin-d" id="login-d1"></div>
+        <div class="pin-dot" id="login-d1"></div>
         <div class="pin-dot" id="login-d2"></div>
         <div class="pin-dot" id="login-d3"></div>
       </div>
@@ -762,7 +770,7 @@
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 // ── Firebase config ──────────────────────────────────────────────
 const firebaseConfig = {
@@ -776,6 +784,12 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// ── Enable offline persistence ───────────────────────────────────
+enableIndexedDbPersistence(db).catch(err => {
+  if (err.code === "failed-precondition") console.warn("Offline persistence unavailable: multiple tabs open");
+  else if (err.code === "unimplemented") console.warn("Offline persistence not supported in this browser");
+});
 
 // ── Constants ────────────────────────────────────────────────────
 const DEFAULT_MEALS = [
@@ -851,12 +865,17 @@ const calcTDEE = (p, wOverride) => {
 };
 const calcRec = (p, wOverride) => {
   const tdee = calcTDEE(p, wOverride);
-  if (!tdee) return null;
-  const tolose = (+( wOverride || p.startWeight)) - (+p.goalWeight);
+  if (!tdee || tdee !== tdee) return null; // NaN check
+  const currentW = +(wOverride || p.startWeight);
+  const goalW = +p.goalWeight;
+  if (!currentW || !goalW || isNaN(currentW) || isNaN(goalW)) return null;
+  const tolose = currentW - goalW;
   let deficit = 500, pace = 'כ-0.5 ק"ג/שבוע', note = "קצב בריא ומומלץ";
   if (tolose > 20) { deficit = 700; pace = 'כ-0.7 ק"ג/שבוע'; note = "גרעון גדול כי המרחק ליעד גדול"; }
   if (tolose < 5)  { deficit = 300; pace = 'כ-0.3 ק"ג/שבוע'; note = "גרעון עדין כי קרוב ליעד"; }
-  return { tdee, target: Math.max(1200, tdee - deficit), deficit, pace, note };
+  const target = Math.max(1200, tdee - deficit);
+  if (isNaN(target)) return null;
+  return { tdee, target, deficit, pace, note };
 };
 
 // ── Firestore helpers ────────────────────────────────────────────
