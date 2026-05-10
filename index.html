@@ -908,14 +908,17 @@ const _session = (() => {
       _uid = uid;
       _token = _generateToken();
       _expiry = Date.now() + SESSION_DURATION;
-      const payload = JSON.stringify({ uid: _uid, token: _token, expiry: _expiry });
-      sessionStorage.setItem("lh_session", btoa(unescape(encodeURIComponent(payload))));
+      try {
+        sessionStorage.setItem("lh_uid", _uid);
+        sessionStorage.setItem("lh_tok", _token);
+        sessionStorage.setItem("lh_exp", String(_expiry));
+      } catch(e) {}
     },
     restore() {
       try {
-        const raw = sessionStorage.getItem("lh_session");
-        if (!raw) return false;
-        const { uid, token, expiry } = JSON.parse(decodeURIComponent(escape(atob(raw))));
+        const uid = sessionStorage.getItem("lh_uid");
+        const token = sessionStorage.getItem("lh_tok");
+        const expiry = +(sessionStorage.getItem("lh_exp") || 0);
         if (!uid || !token || Date.now() > expiry) { this.clear(); return false; }
         _uid = uid; _token = token; _expiry = expiry;
         return true;
@@ -923,7 +926,9 @@ const _session = (() => {
     },
     clear() {
       _uid = null; _token = null; _expiry = 0;
-      sessionStorage.removeItem("lh_session");
+      sessionStorage.removeItem("lh_uid");
+      sessionStorage.removeItem("lh_tok");
+      sessionStorage.removeItem("lh_exp");
     },
     isValid() { return !!_uid && !!_token && Date.now() < _expiry; },
     uid() { return _uid; },
