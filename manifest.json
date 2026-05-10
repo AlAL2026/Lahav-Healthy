@@ -1,6 +1,6 @@
 {
-  "name": "Lean Mode - מעקב בריאות",
-  "short_name": "Lean Mode",
+  "name": "Lahav Healthy",
+  "short_name": "LahavH",
   "description": "מעקב תזונה, כושר ומשקל אישי",
   "start_url": "./index.html",
   "display": "standalone",
@@ -23,6 +23,5 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["health", "fitness"],
-  "screenshots": []
+  "categories": ["health", "fitness"]
 }
