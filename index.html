@@ -908,16 +908,14 @@ const _session = (() => {
       _uid = uid;
       _token = _generateToken();
       _expiry = Date.now() + SESSION_DURATION;
-      // Store only non-sensitive session marker (not uid or token in plain form)
-      sessionStorage.setItem("lh_session", btoa(JSON.stringify({
-        uid: _uid, token: _token, expiry: _expiry
-      })));
+      const payload = JSON.stringify({ uid: _uid, token: _token, expiry: _expiry });
+      sessionStorage.setItem("lh_session", btoa(unescape(encodeURIComponent(payload))));
     },
     restore() {
       try {
         const raw = sessionStorage.getItem("lh_session");
         if (!raw) return false;
-        const { uid, token, expiry } = JSON.parse(atob(raw));
+        const { uid, token, expiry } = JSON.parse(decodeURIComponent(escape(atob(raw))));
         if (!uid || !token || Date.now() > expiry) { this.clear(); return false; }
         _uid = uid; _token = token; _expiry = expiry;
         return true;
